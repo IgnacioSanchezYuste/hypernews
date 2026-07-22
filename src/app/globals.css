@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   HyperNews — Design System
+   A luminous, premium, editorial design language.
+   Inspired by Apple News, Stripe, Linear, Medium.
+   ========================================================================== */
+
+@theme {
+  /* Brand — sky blue, drawn from the HyperFocus logo */
+  --color-brand-50: #eef8fe;
+  --color-brand-100: #d6effd;
+  --color-brand-200: #b0e2fb;
+  --color-brand-300: #7bd0f6;
+  --color-brand-400: #4bc4f0;
+  --color-brand-500: #22a9de;
+  --color-brand-600: #1188bd;
+  --color-brand-700: #106d99;
+  --color-brand-800: #135b7e;
+  --color-brand-900: #144c69;
+
+  /* Editorial neutrals (warm-tinted ink) */
+  --color-ink-50: #f7f7f6;
+  --color-ink-100: #eeedea;
+  --color-ink-200: #dddbd6;
+  --color-ink-300: #bfbcb4;
+  --color-ink-400: #94918a;
+  --color-ink-500: #6e6b64;
+  --color-ink-600: #55524c;
+  --color-ink-700: #403e39;
+  --color-ink-800: #292723;
+  --color-ink-900: #1a1815;
+  --color-ink-950: #0f0e0c;
+
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-mono: var(--font-mono), ui-monospace, "SF Mono", monospace;
+
+  /* Radii */
+  --radius-xl: 1.1rem;
+  --radius-2xl: 1.4rem;
+
+  /* Shadows — soft, layered, premium */
+  --shadow-card: 0 1px 2px rgb(16 16 26 / 0.04), 0 6px 20px -8px rgb(16 16 26 / 0.10);
+  --shadow-lift: 0 2px 4px rgb(16 16 26 / 0.05), 0 18px 40px -18px rgb(16 16 26 / 0.22);
+  --shadow-ring: 0 0 0 1px rgb(16 16 26 / 0.06);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Semantic surface tokens — light theme (default), warm editorial paper */
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f8f7f4;
+  --bg-muted: #f1efea;
+  --surface: #ffffff;
+  --border: #e7e4dd;
+  --border-strong: #d6d2c8;
+  --fg: #1a1815;
+  --fg-muted: #55524c;
+  --fg-subtle: #8b887f;
+  --accent: var(--color-brand-600);
+  --accent-fg: #ffffff;
+  color-scheme: light;
+}
+
+:root.dark {
+  --bg: #14130f;
+  --bg-subtle: #1a1814;
+  --bg-muted: #211f1a;
+  --surface: #1b1915;
+  --border: #302d27;
+  --border-strong: #3d3a33;
+  --fg: #f3f1ea;
+  --fg-muted: #b0aca2;
+  --fg-subtle: #7d7a71;
+  --accent: var(--color-brand-400);
+  --accent-fg: #0f0e0c;
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+}
+
+/* Utility tokens exposed to Tailwind arbitrary values */
+@utility bg-page { background-color: var(--bg); }
+@utility bg-subtle { background-color: var(--bg-subtle); }
+@utility bg-muted { background-color: var(--bg-muted); }
+@utility bg-surface { background-color: var(--surface); }
+@utility text-fg { color: var(--fg); }
+@utility text-muted { color: var(--fg-muted); }
+@utility text-subtle { color: var(--fg-subtle); }
+@utility border-hair { border-color: var(--border); }
+@utility border-strong { border-color: var(--border-strong); }
+@utility shadow-card { box-shadow: var(--shadow-card); }
+@utility shadow-lift { box-shadow: var(--shadow-lift); }
+
+/* Reusable component classes */
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 768px) {
+    .container-page { padding-inline: 2rem; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    transition: transform 0.4s var(--ease-out-soft), box-shadow 0.4s var(--ease-out-soft), border-color 0.4s var(--ease-out-soft);
+  }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lift);
+    border-color: var(--border-strong);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.28rem 0.66rem;
+    border-radius: 999px;
+    line-height: 1;
+  }
+
+  .nav-blur {
+    background: color-mix(in oklab, var(--bg) 82%, transparent);
+  }
+
+  .admin-input {
+    width: 100%;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0.5rem 0.7rem;
+    font-size: 0.875rem;
+    outline: none;
+  }
+  .admin-input:focus { border-color: var(--accent); }
+
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1.5px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.35s var(--ease-out-soft);
+    padding-bottom: 1px;
+  }
+  .link-underline:hover { background-size: 100% 1.5px; }
+}
+
+/* Editorial article typography (the "prose" of HyperNews) */
+.prose-hn {
+  font-size: 1.1875rem;
+  line-height: 1.75;
+  color: var(--fg);
+  max-width: 44rem;
+}
+.prose-hn p { margin-block: 1.4rem; }
+.prose-hn a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+.prose-hn strong { font-weight: 650; color: var(--fg); }
+.prose-hn h2 {
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  font-weight: 560;
+  margin-top: 2.8rem;
+  margin-bottom: 1rem;
+  scroll-margin-top: 6rem;
+}
+.prose-hn h3 {
+  font-size: 1.4rem;
+  font-weight: 680;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  scroll-margin-top: 6rem;
+}
+.prose-hn ul, .prose-hn ol { margin-block: 1.4rem; padding-left: 1.4rem; }
+.prose-hn li { margin-block: 0.5rem; padding-left: 0.3rem; }
+.prose-hn ul li { list-style: none; position: relative; }
+.prose-hn ul li::before {
+  content: "";
+  position: absolute;
+  left: -1rem; top: 0.72rem;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.prose-hn ol { list-style: decimal; }
+.prose-hn blockquote {
+  margin: 2rem 0;
+  padding: 0.4rem 0 0.4rem 1.5rem;
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--fg);
+}
+.prose-hn img { border-radius: var(--radius-xl); margin-block: 2rem; }
+.prose-hn code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--bg-muted);
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.prose-hn pre {
+  background: var(--color-ink-950);
+  color: #e6e6ef;
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-xl);
+  overflow-x: auto;
+  margin-block: 1.8rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.prose-hn pre code { background: none; border: none; padding: 0; color: inherit; }
+
+/* Animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.6s var(--ease-out-soft) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
