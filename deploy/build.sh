@@ -9,9 +9,23 @@
 #
 # Requiere: postgres ya arrancado y sano (docker compose up -d postgres) y un
 # .env con NEWS_DB_PASSWORD.
+#
+# Uso: ./deploy/build.sh [--no-cache]
+#
+# El build depende del CONTENIDO de Postgres en el momento del prerenderizado
+# ISR, algo externo al build context que Docker no puede ver — si solo cambió
+# la base de datos (p.ej. tras `news:backfill`) y no el código, la capa
+# `COPY . .`/`RUN npm run build` cacheada no se invalida sola y el build
+# reutilizaría el HTML ya generado con los datos viejos. Pasa --no-cache
+# después de resembrar la base para forzar que vuelva a leerla.
 set -eu
 
 cd "$(dirname "$0")/.."
+
+NO_CACHE=""
+if [ "${1:-}" = "--no-cache" ]; then
+  NO_CACHE="--no-cache"
+fi
 
 if [ ! -f .env ]; then
   echo "Falta .env — copia .env.production.example primero." >&2
@@ -27,11 +41,11 @@ fi
 DATABASE_URL="postgresql://news:${NEWS_DB_PASSWORD}@postgres:5432/news"
 
 echo "→ Construyendo news-tools:latest..."
-DOCKER_BUILDKIT=0 docker build --network=news_db --target tools \
+DOCKER_BUILDKIT=0 docker build $NO_CACHE --network=news_db --target tools \
   -t news-tools:latest --build-arg DATABASE_URL="$DATABASE_URL" .
 
 echo "→ Construyendo news-app:latest..."
-DOCKER_BUILDKIT=0 docker build --network=news_db --target runner \
+DOCKER_BUILDKIT=0 docker build $NO_CACHE --network=news_db --target runner \
   -t news-app:latest --build-arg DATABASE_URL="$DATABASE_URL" .
 
 echo "✓ Listo. docker compose up -d app  (o: docker compose run --rm tools ...)"

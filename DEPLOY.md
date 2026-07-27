@@ -59,8 +59,12 @@ reconstruye después. En un primer despliegue normal basta con:
 ```bash
 docker compose run --rm tools npm run db:seed
 docker compose run --rm tools npm run news:backfill
-./deploy/build.sh   # reconstruye news-app con el contenido ya sembrado
+./deploy/build.sh --no-cache   # reconstruye news-app con el contenido ya sembrado
 ```
+
+`--no-cache` importa aquí: el build solo ve el código fuente, no la base de
+datos, así que sin él Docker reutilizaría la capa de `next build` ya cacheada
+del paso 3 (con la base todavía vacía) en vez de volver a leerla.
 
 `db:seed` crea el usuario administrador y el contenido editorial de ejemplo.
 `news:backfill` reemplaza las noticias curadas por hasta 30 por categoría de los
