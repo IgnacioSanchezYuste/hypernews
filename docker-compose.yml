@@ -13,7 +13,11 @@ name: news
 x-build: &build
   context: .
   dockerfile: Dockerfile
-  network: news_db
+  # "default": BuildKit's own network selector, not a compose network name — it
+  # resolves to whatever network the *builder* was created with
+  # (docker buildx create --driver-opt network=news_db). Needed so `next build`
+  # can reach the `postgres` service while prerendering ISR pages.
+  network: default
   args:
     DATABASE_URL: ${DATABASE_URL}
 
@@ -110,7 +114,10 @@ networks:
   proxy:
     external: true # Traefik ya está conectado a esta red
   db:
-    internal: true # Solo accesible dentro del stack
+    # No se marca "internal: true": el build necesita salida a internet (pull de
+    # imágenes base, npm ci) mientras resuelve el hostname `postgres`. Sigue sin
+    # exposición externa porque no publica puertos ni se une a la red `proxy`.
+    driver: bridge
 
 volumes:
   pgdata:
