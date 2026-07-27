@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { extract } from "@extractus/article-extractor";
 import { htmlToText } from "html-to-text";
+import sharp from "sharp";
 import type { ArticleImage, Block } from "./types";
 import { slugify } from "./utils";
 
@@ -333,7 +334,10 @@ function tokenize(html: string): RawBlock[] {
   return blocks;
 }
 
-const MAX_BLOCKS = 14;
+// High enough that a full-length news story is captured almost in its
+// entirety, not just a lead excerpt — the callout below still sends readers
+// to the source for anything this cap trims off a genuinely long piece.
+const MAX_BLOCKS = 60;
 const MIN_PARAGRAPHS = 3;
 const MIN_BODY_CHARS = 700;
 
@@ -448,12 +452,28 @@ interface ExtractedArticle {
   image?: ArticleImage;
   body: ParsedBody;
   description?: string;
+  author?: string;
+}
+
+/** Bylines come as "Por Jane Doe", "Jane Doe / EFE", "Jane Doe, Juan Pérez"... keep just the name(s). */
+function cleanAuthor(raw: string | undefined, sourceName: string): string | undefined {
+  if (!raw) return undefined;
+  const name = decodeEntities(raw)
+    .replace(/^(por|by)\s+/i, "")
+    .split(/[\/|]/)[0]
+    .trim();
+  if (!name || name.length > 80) return undefined;
+  if (isNoise(name)) return undefined;
+  if (normalize(name) === normalize(sourceName)) return undefined;
+  // Wire-service bylines aren't a person and are already credited via sourceName.
+  if (/^(efe|reuters|ap|europa press|afp)$/i.test(name)) return undefined;
+  return name;
 }
 
 /**
  * Reads the publisher's page once and takes from it the hero photo, the real
- * body and the summary. Only an opening excerpt is stored — readers follow the
- * source link for the full piece.
+ * body, the summary and (when the page exposes one) the original journalist's
+ * byline, so the republished piece can credit a person, not just an outlet.
  */
 async function extractArticle(sourceUrl: string, title: string, sourceName: string): Promise<ExtractedArticle | null> {
   try {
@@ -467,28 +487,50 @@ async function extractArticle(sourceUrl: string, title: string, sourceName: stri
       ? { url: article.image.replace(/^http:/, "https:"), alt: title, credit: sourceName }
       : undefined;
 
-    return { image, body: parseBody(article.content), description: article.description ?? undefined };
+    return {
+      image,
+      body: parseBody(article.content),
+      description: article.description ?? undefined,
+      author: cleanAuthor(article.author, sourceName),
+    };
   } catch {
     return null;
   }
 }
 
+/** Anything narrower than this looks visibly soft once stretched into a hero slot. */
+const MIN_IMAGE_WIDTH = 600;
+const IMAGE_FETCH_TIMEOUT_MS = 8_000;
+/** Refuse to download beyond this even if a server lies about Content-Length. */
+const MAX_IMAGE_BYTES = 12_000_000;
+
 /**
- * Some publishers advertise an og:image that is a redirect, a placeholder or a
- * plain 404. Those would surface as a broken hero, so every candidate photo is
- * checked before it reaches the database.
+ * Some publishers advertise an og:image that is a redirect, a placeholder, a
+ * plain 404, or a real photo shrunk to a tiny thumbnail. A HEAD request only
+ * catches the first three — actual pixel dimensions need the bytes, so this
+ * downloads the image and reads its header via sharp before it reaches the
+ * database.
  */
 async function isServableImage(url: string): Promise<boolean> {
   if (!url.startsWith("https://")) return false;
   try {
     const res = await fetch(url, {
-      method: "HEAD",
       redirect: "follow",
       headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(6_000),
+      signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
     });
+    if (!res.ok) return false;
     const type = res.headers.get("content-type") ?? "";
-    return res.ok && type.startsWith("image/") && !type.includes("svg");
+    if (!type.startsWith("image/") || type.includes("svg")) return false;
+
+    const contentLength = Number(res.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_IMAGE_BYTES) return false;
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.byteLength > MAX_IMAGE_BYTES) return false;
+
+    const { width } = await sharp(buffer).metadata();
+    return typeof width === "number" && width >= MIN_IMAGE_WIDTH;
   } catch {
     return false;
   }
@@ -551,6 +593,10 @@ async function extractItems(rawItems: BingItem[], source: FeedSource): Promise<(
       firstParagraph ??
       (extracted.description && !isNoise(extracted.description) ? extracted.description : item.contentSnippet ?? title);
 
+    const byline = extracted.author
+      ? `Escrito originalmente por **${extracted.author}** para ${sourceName}.`
+      : `Publicado originalmente por ${sourceName}.`;
+
     const body: Block[] = [
       ...blocks,
       { type: "divider" },
@@ -560,7 +606,7 @@ async function extractItems(rawItems: BingItem[], source: FeedSource): Promise<(
         title: "Fuente original",
         // The [label](url) markdown is rendered as a real link by ArticleBody —
         // readers get a clickable way back to the source, not just a mention of one.
-        text: `Adelanto de la información publicada por ${sourceName}. [Lee la noticia completa en ${sourceName} ↗](${sourceUrl})`,
+        text: `${byline} [Lee la noticia completa en ${sourceName} ↗](${sourceUrl})`,
       },
     ];
 

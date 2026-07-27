@@ -16,6 +16,7 @@ import { ReadingProgress } from "@/components/article/ReadingProgress";
 import { TableOfContents } from "@/components/article/TableOfContents";
 import { ShareButtons } from "@/components/article/ShareButtons";
 import { Comments } from "@/components/article/Comments";
+import { ViewTracker } from "@/components/article/ViewTracker";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { Newsletter } from "@/components/marketing/Newsletter";
 
@@ -66,6 +67,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
+      <ViewTracker slug={article.slug} />
       <ReadingProgress />
       <JsonLd data={articleJsonLd(article)} />
       <JsonLd data={breadcrumbJsonLd(breadcrumb.map((b) => ({ name: b.name, path: b.path })))} />

@@ -4,14 +4,11 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 
 /**
- * Lightweight comments UI. Local-only demo state; wire `onSubmit` to your
- * backend / a provider (e.g. a serverless function + database) when ready.
+ * Comments UI with no backend yet: nothing here persists past a page reload,
+ * and no fabricated comments are shown as if they were real activity.
  */
 export function Comments({ count = 0 }: { count?: number }) {
-  const [comments, setComments] = useState<{ name: string; text: string; at: string }[]>([
-    { name: "Lucía R.", text: "Excelente análisis, me ha aclarado varias dudas que tenía. ¡Gracias!", at: "hace 2 h" },
-    { name: "Marcos T.", text: "No estoy del todo de acuerdo con el segundo punto, pero muy bien argumentado.", at: "hace 5 h" },
-  ]);
+  const [comments, setComments] = useState<{ name: string; text: string; at: string }[]>([]);
   const [text, setText] = useState("");
 
   function submit(e: React.FormEvent) {
@@ -24,6 +21,7 @@ export function Comments({ count = 0 }: { count?: number }) {
   return (
     <section id="comentarios" className="mt-14 border-t border-hair pt-10">
       <h2 className="font-serif text-2xl font-medium">Comentarios <span className="text-muted">({count || comments.length})</span></h2>
+      <p className="mt-1 text-sm text-subtle">Los comentarios todavía no se guardan de forma permanente.</p>
 
       <form onSubmit={submit} className="mt-6 flex gap-3">
         <Avatar author="equipo-hypernews" size={40} />
@@ -43,17 +41,19 @@ export function Comments({ count = 0 }: { count?: number }) {
         </div>
       </form>
 
-      <ul className="mt-8 space-y-6">
-        {comments.map((c, i) => (
-          <li key={i} className="flex gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold text-muted">{c.name[0]}</span>
-            <div>
-              <p className="text-sm"><span className="font-semibold">{c.name}</span> <span className="text-subtle">· {c.at}</span></p>
-              <p className="mt-1 text-sm text-muted">{c.text}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {comments.length > 0 && (
+        <ul className="mt-8 space-y-6">
+          {comments.map((c, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold text-muted">{c.name[0]}</span>
+              <div>
+                <p className="text-sm"><span className="font-semibold">{c.name}</span> <span className="text-subtle">· {c.at}</span></p>
+                <p className="mt-1 text-sm text-muted">{c.text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

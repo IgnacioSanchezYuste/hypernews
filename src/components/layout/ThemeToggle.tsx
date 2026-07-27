@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useSyncExternalStore } from "react";
 
 /** The `dark` class on <html> is the source of truth; this watches it. */
 function subscribe(onChange: () => void) {
@@ -14,9 +14,21 @@ const isDarkOnServer = () => false;
 
 /**
  * Light/dark toggle. Default is light (the brand). Preference persists in
- * localStorage; the inline boot script in <head> prevents theme flash.
+ * localStorage; the inline boot script in <head> is what prevents a flash of
+ * the wrong theme on first paint. This effect mirrors that same script and
+ * re-applies the class on mount — a safety net for the cases (some CDNs and
+ * proxies rewrite or defer inline `<head>` scripts) where the boot script's
+ * class never makes it to first paint.
  */
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+  useLayoutEffect(() => {
+    try {
+      const stored = localStorage.getItem("hn-theme");
+      const shouldBeDark = stored === "dark" || (!stored && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.classList.toggle("dark", shouldBeDark);
+    } catch {}
+  }, []);
+
   const dark = useSyncExternalStore(subscribe, isDark, isDarkOnServer);
 
   function toggle() {

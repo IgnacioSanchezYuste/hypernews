@@ -101,6 +101,11 @@ export async function insertArticle(input: NewArticleInput): Promise<void> {
   );
 }
 
+/** Real per-visit counter, driven by a client-side beacon (see ViewTracker). */
+export async function incrementArticleViews(slug: string): Promise<void> {
+  await pool.query("update articles set views = views + 1 where slug = $1", [slug]);
+}
+
 export async function articleSlugExists(slug: string): Promise<boolean> {
   const { rows } = await pool.query("select 1 from articles where slug = $1", [slug]);
   return rows.length > 0;

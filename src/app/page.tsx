@@ -34,11 +34,11 @@ export default async function HomePage() {
     <>
       {/* ── FEATURED ─────────────────────────────────────────── */}
       <section className="container-page pt-8">
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid items-start gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">{hero && <ArticleCard article={hero} variant="hero" />}</div>
           <div className="flex flex-col gap-6">
             {sideFeatured.slice(0, 2).map((a) => (
-              <div key={a.slug} className="flex-1"><ArticleCard article={a} variant="feature" /></div>
+              <ArticleCard key={a.slug} article={a} variant="feature" />
             ))}
           </div>
         </div>
@@ -118,7 +118,7 @@ function ArticleRowBody({ article }: { article: Article }) {
   return (
     <div className="flex flex-col justify-center">
       <CategoryBadge slug={article.category} />
-      <h3 className="mt-2 font-serif text-xl font-semibold leading-tight md:text-2xl">
+      <h3 className="mt-2 line-clamp-2 font-serif text-xl font-semibold leading-tight md:text-2xl">
         <Link href={`/articulo/${article.slug}`} className="hover:text-brand-600">{article.title}</Link>
       </h3>
       <p className="mt-2 line-clamp-2 text-muted">{article.excerpt}</p>

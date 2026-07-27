@@ -54,7 +54,7 @@ export function ArticleCard({
 
   if (variant === "hero") {
     return (
-      <article className="group relative flex h-full min-h-[24rem] flex-col justify-end overflow-hidden rounded-2xl p-6 text-white shadow-lift md:min-h-[30rem] md:p-9">
+      <article className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-2xl p-6 text-white shadow-lift sm:aspect-[16/10] md:p-9">
         <CoverImage image={article.image} seed={article.coverSeed} category={article.category} rounded="" className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 66vw" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5" />
         <div className="relative max-w-2xl">
@@ -82,7 +82,7 @@ export function ArticleCard({
         </Link>
         <div className="flex flex-1 flex-col pt-4">
           <CategoryBadge slug={article.category} />
-          <h3 className="mt-2 font-serif text-xl font-semibold leading-tight md:text-2xl">
+          <h3 className="mt-2 line-clamp-2 font-serif text-xl font-semibold leading-tight md:text-2xl">
             <Link href={href} className="hover:text-brand-600">{article.title}</Link>
           </h3>
           <p className="mt-2 line-clamp-2 flex-1 text-muted">{article.excerpt}</p>
