@@ -12,8 +12,19 @@ declare global {
  */
 const MAX_CLIENTS = Number(process.env.PGPOOL_MAX ?? 5);
 
-/** Managed Postgres always speaks TLS; a local socket does not. */
+/**
+ * Managed Postgres always speaks TLS; a socket that never leaves the host or
+ * never leaves a private Docker network does not. `DATABASE_SSL` is the
+ * explicit override for the cases the hostname heuristic can't know about —
+ * e.g. a compose service name like `postgres` that's private but not "local".
+ */
 function sslConfig(connectionString: string) {
+  const override = process.env.DATABASE_SSL?.trim().toLowerCase();
+  if (override === "false" || override === "0") return undefined;
+  if (override === "true" || override === "1") {
+    return { rejectUnauthorized: process.env.PGSSL_NO_VERIFY !== "1" };
+  }
+
   try {
     const { hostname } = new URL(connectionString);
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local")) return undefined;

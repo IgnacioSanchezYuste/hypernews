@@ -1,0 +1,116 @@
+# Stack de producción: news.hyperfocus.es
+# Red Traefik: `proxy` (externa, ya existe — gestionada por el stack n8n/Traefik)
+# Red interna: `db` (solo postgres ↔ app/tools, sin exposición externa)
+#
+# Primer deploy: ver DEPLOY.md
+#
+# Variables requeridas en .env (ver .env.production.example):
+#   NEWS_DB_PASSWORD, DATABASE_URL, SESSION_SECRET, CRON_SECRET,
+#   ADMIN_EMAIL, ADMIN_PASSWORD
+
+name: news
+
+x-build: &build
+  context: .
+  dockerfile: Dockerfile
+  network: news_db
+  args:
+    DATABASE_URL: ${DATABASE_URL}
+
+x-runtime-env: &runtime-env
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL}
+  DATABASE_SSL: "false"
+  SESSION_SECRET: ${SESSION_SECRET}
+  CRON_SECRET: ${CRON_SECRET}
+  ADMIN_EMAIL: ${ADMIN_EMAIL}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+  NEXT_PUBLIC_SITE_URL: "https://news.hyperfocus.es"
+
+services:
+  # ── Base de datos ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: news
+      POSTGRES_PASSWORD: ${NEWS_DB_PASSWORD}
+      POSTGRES_DB: news
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    networks:
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U news -d news"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # ── Herramientas de gestión (solo con --profile tools) ─────────────────────────
+  # Imagen "tools" del Dockerfile: conserva tsx y las devDependencies que la
+  # imagen de producción no lleva. Uso: docker compose run --rm tools npm run db:seed
+  tools:
+    build:
+      <<: *build
+      target: tools
+    profiles: ["tools"]
+    environment:
+      <<: *runtime-env
+    networks:
+      - db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Aplicación Next.js ────────────────────────────────────────────────────────
+  app:
+    build:
+      <<: *build
+      target: runner
+    restart: unless-stopped
+    environment:
+      <<: *runtime-env
+    networks:
+      - proxy
+      - db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:3000/api/health > /dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 45s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+
+      # ── HTTP → HTTPS redirect ────────────────────────────────────────────────
+      - "traefik.http.routers.news-http.rule=Host(`news.hyperfocus.es`)"
+      - "traefik.http.routers.news-http.entrypoints=web"
+      - "traefik.http.routers.news-http.middlewares=news-redirect-https"
+      - "traefik.http.routers.news-http.priority=1"
+
+      # ── HTTPS ────────────────────────────────────────────────────────────────
+      - "traefik.http.routers.news.rule=Host(`news.hyperfocus.es`)"
+      - "traefik.http.routers.news.entrypoints=websecure"
+      - "traefik.http.routers.news.tls=true"
+      - "traefik.http.routers.news.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.news.priority=1"
+      - "traefik.http.services.news.loadbalancer.server.port=3000"
+
+      # ── Middleware redirect ───────────────────────────────────────────────────
+      - "traefik.http.middlewares.news-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.news-redirect-https.redirectscheme.permanent=true"
+
+networks:
+  proxy:
+    external: true # Traefik ya está conectado a esta red
+  db:
+    internal: true # Solo accesible dentro del stack
+
+volumes:
+  pgdata:

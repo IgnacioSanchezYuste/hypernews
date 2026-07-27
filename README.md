@@ -144,16 +144,37 @@ a su fuente.
 
 ## Despliegue
 
-1. Provisiona un Postgres gestionado y aplica el esquema: `npm run db:seed`.
-2. Define las variables de entorno de la tabla anterior. Genera secretos nuevos:
-   no reutilices los de desarrollo.
-3. Despliega. `vercel.json` programa la actualización de noticias cada día a las 06:00 UTC.
-   La plataforma envía `Authorization: Bearer $CRON_SECRET` automáticamente.
-4. Comprueba `/feed.xml`, `/sitemap.xml`, `/robots.txt` y el acceso a `/admin`.
+### Docker / VPS propio (uso actual)
 
-Para escalar: las páginas de contenido se sirven prerenderizadas con ISR (5 min), así
-que el tráfico de lectura no toca la base de datos. Si necesitas mayor frescura, baja
-el `revalidate` de cada página; si necesitas menos carga, súbelo.
+`Dockerfile` + `docker-compose.yml` despliegan la app junto a su propio Postgres,
+detrás de un proxy inverso existente (Traefik) que gestiona TLS. Ver `DEPLOY.md`
+para el procedimiento completo. Resumen:
+
+1. `git clone` de este repo en el servidor y `cp .env.production.example .env`
+   (genera cada secreto con `openssl rand -hex 32`).
+2. `docker compose up -d postgres` — aplica `db/schema.sql` automáticamente en el
+   primer arranque (volumen vacío).
+3. `docker compose run --rm tools npm run db:seed` y luego
+   `docker compose run --rm tools npm run news:backfill` para tener contenido real
+   antes del primer build (las páginas se prerenderizan con ISR).
+4. `docker compose up -d --build app`.
+5. Cron diario: un `crontab` local llama a `/api/cron/news` con
+   `Authorization: Bearer $CRON_SECRET` (ver `DEPLOY.md`).
+
+### Vercel (alternativa)
+
+`vercel.json` programa la actualización de noticias a las 06:00 UTC (cabecera
+`Authorization` enviada automáticamente por la plataforma). Requiere un Postgres
+gestionado externo (Neon, Supabase…) — `DATABASE_URL` y el resto de variables se
+definen en el panel del proyecto.
+
+### En cualquier caso
+
+Comprueba `/api/health`, `/feed.xml`, `/sitemap.xml`, `/robots.txt` y el acceso a
+`/admin` tras el despliegue. Las páginas de contenido se sirven prerenderizadas con
+ISR (5 min), así que el tráfico de lectura no toca la base de datos salvo cuando el
+caché expira. Si necesitas mayor frescura, baja el `revalidate` de cada página; si
+necesitas menos carga, súbelo.
 
 ## Notas de producción
 

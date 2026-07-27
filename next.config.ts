@@ -43,6 +43,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Self-hosted behind Docker: emits .next/standalone with a minimal server.js
+  // and only the node_modules it actually needs, instead of the full tree.
+  output: "standalone",
 
   images: {
     // Editorial photography comes from the publishers we curate and from URLs an

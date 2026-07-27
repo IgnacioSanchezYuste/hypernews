@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+.env
+.env.*
+!.env.production.example
+.DS_Store
+*.tsbuildinfo
+README.md
+AGENTS.md
+CLAUDE.md
+.vercel
+.claude
