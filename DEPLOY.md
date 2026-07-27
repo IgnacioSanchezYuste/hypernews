@@ -34,39 +34,41 @@ docker compose ps  # espera a "healthy"
 El primer arranque, con el volumen vacío, ejecuta `db/schema.sql` automáticamente
 (vía `docker-entrypoint-initdb.d`).
 
-## 3. Builder con acceso a la red `db`
-
-`next build` prerenderiza las páginas públicas (ISR) leyendo de Postgres, así que
-el build necesita alcanzar el servicio `postgres` por su nombre. El builder de
-BuildKit por defecto no tiene acceso a redes Docker arbitrarias, así que se crea
-uno dedicado (una sola vez, no toca el builder por defecto del servidor):
+## 3. Construir las imágenes
 
 ```bash
-docker buildx create --name newsbuilder --driver docker-container \
-  --driver-opt network=news_db
+./deploy/build.sh
 ```
 
-(Si la red `news_db` aún no existe, arranca primero `docker compose up -d postgres`.)
+`next build` prerenderiza las páginas públicas (ISR) leyendo de Postgres, así que
+el build necesita alcanzar el servicio `postgres` por su nombre — `deploy/build.sh`
+usa el builder clásico de Docker (`DOCKER_BUILDKIT=0`) con `--network=news_db` en
+vez de `docker compose build`: BuildKit ejecuta cada `RUN` en un sandbox de red
+aislado que no se une de forma fiable a una red bridge existente, mientras que el
+builder clásico sí soporta `--network=<red>` directamente. Genera dos imágenes:
+`news-tools:latest` (con tsx y las devDependencies, para las tareas de gestión) y
+`news-app:latest` (runtime mínimo).
 
-## 4. Contenido antes del build
+## 4. Contenido antes de levantar la app
 
-Conviene que la base ya tenga contenido real antes de construir la imagen final,
-para que el prerenderizado no capture páginas vacías:
+Conviene que la base ya tenga contenido real — la imagen ya se construyó con
+prerenderizado ISR, así que si quieres que el primer despliegue salga con
+contenido real desde el minuto uno, siembra la base **antes** del paso 3 y
+reconstruye después. En un primer despliegue normal basta con:
 
 ```bash
-docker compose --profile tools build --builder newsbuilder tools
 docker compose run --rm tools npm run db:seed
 docker compose run --rm tools npm run news:backfill
+./deploy/build.sh   # reconstruye news-app con el contenido ya sembrado
 ```
 
 `db:seed` crea el usuario administrador y el contenido editorial de ejemplo.
 `news:backfill` reemplaza las noticias curadas por hasta 30 por categoría de los
 últimos 30 días (tarda unos minutos).
 
-## 5. Construir y levantar la app
+## 5. Levantar la app
 
 ```bash
-docker compose build --builder newsbuilder app
 docker compose up -d app
 ```
 
@@ -112,7 +114,7 @@ Revisa también `docker compose logs -f app` durante los primeros minutos.
 ```bash
 cd /opt/hyperfocus/news
 git pull
-docker compose build --builder newsbuilder app
+./deploy/build.sh
 docker compose up -d app
 ```
 

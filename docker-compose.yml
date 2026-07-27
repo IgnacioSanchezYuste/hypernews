@@ -2,6 +2,11 @@
 # Red Traefik: `proxy` (externa, ya existe — gestionada por el stack n8n/Traefik)
 # Red interna: `db` (solo postgres ↔ app/tools, sin exposición externa)
 #
+# Las imágenes se construyen aparte con `deploy/build.sh` (no con `docker compose
+# build`): next build necesita alcanzar el Postgres del stack por su nombre de
+# host, y eso solo funciona de forma fiable con el builder clásico de Docker
+# (`--network=<red>`), no con el sandbox de red aislado de BuildKit/buildx.
+#
 # Primer deploy: ver DEPLOY.md
 #
 # Variables requeridas en .env (ver .env.production.example):
@@ -9,17 +14,6 @@
 #   ADMIN_EMAIL, ADMIN_PASSWORD
 
 name: news
-
-x-build: &build
-  context: .
-  dockerfile: Dockerfile
-  # "default": BuildKit's own network selector, not a compose network name — it
-  # resolves to whatever network the *builder* was created with
-  # (docker buildx create --driver-opt network=news_db). Needed so `next build`
-  # can reach the `postgres` service while prerendering ISR pages.
-  network: default
-  args:
-    DATABASE_URL: ${DATABASE_URL}
 
 x-runtime-env: &runtime-env
   NODE_ENV: production
@@ -52,12 +46,10 @@ services:
       retries: 12
 
   # ── Herramientas de gestión (solo con --profile tools) ─────────────────────────
-  # Imagen "tools" del Dockerfile: conserva tsx y las devDependencies que la
+  # Imagen "tools" (deploy/build.sh): conserva tsx y las devDependencies que la
   # imagen de producción no lleva. Uso: docker compose run --rm tools npm run db:seed
   tools:
-    build:
-      <<: *build
-      target: tools
+    image: news-tools:latest
     profiles: ["tools"]
     environment:
       <<: *runtime-env
@@ -70,9 +62,7 @@ services:
 
   # ── Aplicación Next.js ────────────────────────────────────────────────────────
   app:
-    build:
-      <<: *build
-      target: runner
+    image: news-app:latest
     restart: unless-stopped
     environment:
       <<: *runtime-env
@@ -114,9 +104,9 @@ networks:
   proxy:
     external: true # Traefik ya está conectado a esta red
   db:
-    # No se marca "internal: true": el build necesita salida a internet (pull de
-    # imágenes base, npm ci) mientras resuelve el hostname `postgres`. Sigue sin
-    # exposición externa porque no publica puertos ni se une a la red `proxy`.
+    # No se marca "internal: true": el build clásico necesita salida a internet
+    # (pull de imágenes base, npm ci) mientras resuelve el hostname `postgres`.
+    # Sigue sin exposición externa porque no publica puertos ni se une a `proxy`.
     driver: bridge
 
 volumes:

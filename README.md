@@ -154,11 +154,14 @@ para el procedimiento completo. Resumen:
    (genera cada secreto con `openssl rand -hex 32`).
 2. `docker compose up -d postgres` — aplica `db/schema.sql` automáticamente en el
    primer arranque (volumen vacío).
-3. `docker compose run --rm tools npm run db:seed` y luego
-   `docker compose run --rm tools npm run news:backfill` para tener contenido real
-   antes del primer build (las páginas se prerenderizan con ISR).
-4. `docker compose up -d --build app`.
-5. Cron diario: un `crontab` local llama a `/api/cron/news` con
+3. `./deploy/build.sh` — construye `news-tools` y `news-app` con el builder
+   clásico de Docker (necesario para que `next build` alcance `postgres` durante
+   el prerenderizado ISR).
+4. `docker compose run --rm tools npm run db:seed` y luego
+   `docker compose run --rm tools npm run news:backfill` para tener contenido
+   real; repite `./deploy/build.sh` para que el prerenderizado lo capture.
+5. `docker compose up -d app`.
+6. Cron diario: un `crontab` local llama a `/api/cron/news` con
    `Authorization: Bearer $CRON_SECRET` (ver `DEPLOY.md`).
 
 ### Vercel (alternativa)
