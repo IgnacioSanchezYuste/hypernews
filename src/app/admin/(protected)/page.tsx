@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { allArticles } from "@/lib/articles";
+import { getAllArticles } from "@/lib/queries";
 import { categories } from "@/lib/categories";
 import { authors } from "@/lib/authors";
 import { formatViews, formatDate } from "@/lib/utils";
 import { getCategory } from "@/lib/categories";
+import { verifySession } from "@/lib/dal";
 
 function Stat({ label, value, delta, positive = true }: { label: string; value: string; delta: string; positive?: boolean }) {
   return (
@@ -15,14 +16,16 @@ function Stat({ label, value, delta, positive = true }: { label: string; value: 
   );
 }
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  const session = await verifySession();
+  const allArticles = await getAllArticles();
   const totalViews = allArticles.reduce((s, a) => s + a.views, 0);
   const totalComments = allArticles.reduce((s, a) => s + (a.comments ?? 0), 0);
   const recent = [...allArticles].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()).slice(0, 6);
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-medium">Buenos días, Elena 👋</h1>
+      <h1 className="font-serif text-2xl font-medium">Buenos días, {session.name} 👋</h1>
       <p className="mt-1 text-muted">Esto es lo que ha pasado en HyperNews.</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

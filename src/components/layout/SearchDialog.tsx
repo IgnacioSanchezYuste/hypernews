@@ -24,53 +24,70 @@ export function SearchDialog() {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  /** localStorage is user-writable, so never trust its shape. */
+  const readRecent = useCallback((): string[] => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+      return Array.isArray(parsed) ? parsed.filter((r): r is string => typeof r === "string").slice(0, 6) : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const openDialog = useCallback(() => {
+    setRecent(readRecent());
+    setOpen(true);
+  }, [readRecent]);
+
+  const closeDialog = useCallback(() => {
+    setOpen(false);
+    setQ("");
+    setResults([]);
+    setActive(0);
+  }, []);
+
   // Open with ⌘K / Ctrl+K, close with Esc
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((o) => !o);
+        if (open) closeDialog();
+        else openDialog();
       }
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") closeDialog();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open, openDialog, closeDialog]);
 
   // Expose a global opener for the navbar button
   useEffect(() => {
-    (window as unknown as { __openSearch?: () => void }).__openSearch = () => setOpen(true);
-  }, []);
+    (window as unknown as { __openSearch?: () => void }).__openSearch = openDialog;
+  }, [openDialog]);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 20);
-      try {
-        setRecent(JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"));
-      } catch {}
-    } else {
-      setQ("");
-      setResults([]);
-      setActive(0);
-    }
+    if (open) inputRef.current?.focus();
   }, [open]);
 
   // Debounced instant search
   useEffect(() => {
-    if (!q.trim()) {
-      setResults([]);
-      return;
-    }
+    const query = q.trim();
+    if (!query) return;
+
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) return;
         const data = await res.json();
-        setResults(data.results ?? []);
+        setResults(Array.isArray(data.results) ? data.results : []);
         setActive(0);
       } catch {}
-    }, 120);
+    }, 160);
     return () => clearTimeout(t);
   }, [q]);
+
+  // Results belong to the query that produced them; while it is empty, show none.
+  const shownResults = q.trim() ? results : [];
 
   const commit = useCallback(
     (href: string) => {
@@ -80,18 +97,18 @@ export function SearchDialog() {
           localStorage.setItem(RECENT_KEY, JSON.stringify(next));
         } catch {}
       }
-      setOpen(false);
+      closeDialog();
       router.push(href);
     },
-    [q, recent, router]
+    [q, recent, router, closeDialog]
   );
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, results.length - 1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, shownResults.length - 1)); }
     if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
     if (e.key === "Enter") {
       e.preventDefault();
-      if (results[active]) commit(results[active].href);
+      if (shownResults[active]) commit(shownResults[active].href);
       else if (q.trim()) commit(`/buscar?q=${encodeURIComponent(q.trim())}`);
     }
   }
@@ -100,7 +117,7 @@ export function SearchDialog() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[10vh]" role="dialog" aria-modal="true" aria-label="Buscar">
-      <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-sm animate-fade-up" onClick={() => setOpen(false)} />
+      <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-sm animate-fade-up" onClick={closeDialog} />
       <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-hair bg-surface shadow-lift animate-fade-up">
         <div className="flex items-center gap-3 border-b border-hair px-4">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-subtle" aria-hidden>
@@ -139,11 +156,11 @@ export function SearchDialog() {
             </div>
           )}
 
-          {q.trim() !== "" && results.length === 0 && (
+          {q.trim() !== "" && shownResults.length === 0 && (
             <p className="p-6 text-center text-sm text-muted">Sin resultados para “{q}”. Pulsa Enter para buscar de todos modos.</p>
           )}
 
-          {results.map((r, i) => (
+          {shownResults.map((r, i) => (
             <button
               key={r.href + i}
               onMouseEnter={() => setActive(i)}
@@ -162,7 +179,7 @@ export function SearchDialog() {
 
         <div className="flex items-center justify-between border-t border-hair px-4 py-2 text-[11px] text-subtle">
           <span>↑↓ navegar · ↵ abrir</span>
-          <Link href="/buscar" onClick={() => setOpen(false)} className="hover:text-fg">Búsqueda avanzada →</Link>
+          <Link href="/buscar" onClick={closeDialog} className="hover:text-fg">Búsqueda avanzada →</Link>
         </div>
       </div>
     </div>

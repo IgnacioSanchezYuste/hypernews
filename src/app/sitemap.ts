@@ -1,11 +1,14 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
-import { allArticles } from "@/lib/articles";
+import { getAllArticles } from "@/lib/queries";
 import { categories } from "@/lib/categories";
 import { authors } from "@/lib/authors";
 
+/** Refreshed on the same cadence as the catalogue cache. */
+export const revalidate = 3600;
+
 /** Automatic sitemap covering every indexable route. */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const abs = (p: string) => `${site.url}${p}`;
 
@@ -19,7 +22,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: abs("/contacto"), lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  const articleRoutes: MetadataRoute.Sitemap = allArticles.map((a) => ({
+  const articles = await getAllArticles();
+  const articleRoutes: MetadataRoute.Sitemap = articles.map((a) => ({
     url: abs(`/articulo/${a.slug}`),
     lastModified: new Date(a.updatedAt ?? a.publishedAt),
     changeFrequency: "weekly",

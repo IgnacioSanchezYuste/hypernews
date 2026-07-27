@@ -7,7 +7,7 @@ export const runtime = "edge";
 export function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const title = (searchParams.get("title") ?? site.name).slice(0, 120);
-  const subtitle = searchParams.get("subtitle") ?? site.tagline;
+  const subtitle = (searchParams.get("subtitle") ?? site.tagline).slice(0, 60);
 
   return new ImageResponse(
     (
@@ -40,6 +40,14 @@ export function GET(req: Request) {
         <div style={{ fontSize: 26, color: "rgba(255,255,255,0.6)" }}>{site.url.replace("https://", "")}</div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    {
+      width: 1200,
+      height: 630,
+      // Rendering is the expensive part; each title/subtitle pair is rendered once.
+      headers: {
+        "Cache-Control": "public, immutable, no-transform, max-age=31536000",
+        "X-Robots-Tag": "noindex",
+      },
+    }
   );
 }

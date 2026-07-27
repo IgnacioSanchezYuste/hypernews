@@ -1,33 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { allArticles } from "@/lib/articles";
-import { categories } from "@/lib/categories";
-import { authors } from "@/lib/authors";
+import { MAX_QUERY_LENGTH, search } from "@/lib/search";
 import { buildMetadata } from "@/lib/seo";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { SearchBox } from "@/components/layout/SearchBox";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Buscar",
-  description: "Busca en todo HyperNews: artículos, categorías, autores y recursos.",
-  path: "/buscar",
-});
-
-function norm(s: string) {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
+export const metadata: Metadata = {
+  ...buildMetadata({
+    title: "Buscar",
+    description: "Busca en todo HyperNews: artículos, categorías, autores y recursos.",
+    path: "/buscar",
+  }),
+  // Result pages are thin and infinite in number — keep them out of the index.
+  robots: { index: false, follow: true },
+};
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q = "" } = await searchParams;
-  const query = norm(q).trim();
+  const { q: rawQuery = "" } = await searchParams;
+  const q = rawQuery.slice(0, MAX_QUERY_LENGTH);
+  const query = q.trim();
 
-  const foundArticles = query
-    ? allArticles.filter((a) => norm(a.title).includes(query) || norm(a.excerpt).includes(query) || a.tags.some((t) => norm(t).includes(query)))
-    : [];
-  const foundCategories = query ? categories.filter((c) => norm(c.name).includes(query) || norm(c.description).includes(query)) : [];
-  const foundAuthors = query ? authors.filter((a) => norm(a.name).includes(query)) : [];
-
-  const total = foundArticles.length + foundCategories.length + foundAuthors.length;
+  const { articles: foundArticles, categories: foundCategories, authors: foundAuthors, total } = await search(q);
 
   return (
     <div className="container-page py-12">

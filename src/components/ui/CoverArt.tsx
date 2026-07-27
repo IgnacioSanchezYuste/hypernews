@@ -12,13 +12,13 @@ export function CoverArt({
   glyph,
   className = "",
   rounded = "rounded-2xl",
-  priority: _priority,
 }: {
   seed: string;
   category?: string;
   glyph?: string;
   className?: string;
   rounded?: string;
+  /** Accepted for parity with CoverImage; generated art loads no resource. */
   priority?: boolean;
 }) {
   const cat = category ? getCategory(category) : undefined;

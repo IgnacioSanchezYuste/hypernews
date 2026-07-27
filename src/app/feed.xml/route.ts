@@ -2,15 +2,16 @@ import { site } from "@/lib/site";
 import { getAllArticles } from "@/lib/queries";
 import { getCategory } from "@/lib/categories";
 
-export const dynamic = "force-static";
+// Regenerated hourly instead of frozen at build time, so new stories appear.
+export const revalidate = 3600;
 
 function esc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** RSS 2.0 feed of the latest articles. */
-export function GET() {
-  const articles = getAllArticles().slice(0, 50);
+export async function GET() {
+  const articles = (await getAllArticles()).slice(0, 50);
   const items = articles
     .map((a) => {
       const url = `${site.url}/articulo/${a.slug}`;

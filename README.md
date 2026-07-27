@@ -18,12 +18,41 @@ cientos de miles de artículos y millones de visitas.
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
-npm run build    # build de producción
-npm run start    # servir el build
+cp .env.example .env.local     # y rellena los valores (ver más abajo)
+createdb hypernews             # o usa una base de datos gestionada
+npm run db:seed                # crea el esquema, el contenido inicial y el usuario admin
+npm run dev                    # http://localhost:3000
 ```
 
-Copia `.env.example` a `.env.local` y ajusta `NEXT_PUBLIC_SITE_URL`.
+Otros comandos:
+
+```bash
+npm run build       # build de producción
+npm run start       # servir el build
+npm run news:fetch  # ejecutar a mano la actualización diaria de noticias
+npm run lint        # ESLint
+```
+
+### Variables de entorno
+
+| Variable | Obligatoria | Para qué sirve |
+| --- | --- | --- |
+| `DATABASE_URL` | Sí | Conexión a Postgres. Fuera de `localhost` se exige TLS. |
+| `SESSION_SECRET` | Sí | Firma las cookies de sesión del panel. Mínimo 32 caracteres. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Solo para el seed | Crean o actualizan el usuario administrador. |
+| `CRON_SECRET` | Sí en producción | Autoriza `/api/cron/news`. Mínimo 32 caracteres. |
+| `NEXT_PUBLIC_SITE_URL` | Recomendada | URL pública canónica (SEO, OpenGraph, RSS, sitemap). |
+| `PGPOOL_MAX` | No | Conexiones por instancia. Por defecto 5; súbelo solo en un servidor persistente. |
+| `PGSSL_NO_VERIFY` | No | Ponlo a `1` únicamente si tu proveedor sirve un certificado autofirmado. |
+
+Genera los secretos con:
+
+```bash
+openssl rand -base64 48
+```
+
+La app falla al arrancar si `SESSION_SECRET` falta, es corta o conserva el valor de
+ejemplo: es preferible un error visible a firmar sesiones con una clave débil.
 
 ## Arquitectura
 
@@ -35,10 +64,10 @@ src/
 │  ├─ categoria/[slug]/     # Categorías + subcategorías (SSG)
 │  ├─ autor/[slug]/         # Perfil de autor
 │  ├─ etiqueta/[slug]/      # Archivo por etiqueta
-│  ├─ recursos/             # Biblioteca de recursos online
 │  ├─ buscar/               # Búsqueda avanzada (SSR)
 │  ├─ tendencias/ articulos/ categorias/ newsletter/
-│  ├─ admin/                # CMS propio (dashboard, artículos, editor…)
+│  ├─ admin/                # Panel propio: login + rutas protegidas
+│  ├─ api/cron/news/        # Actualización diaria de noticias
 │  ├─ api/search/           # Búsqueda instantánea (⌘K)
 │  ├─ api/og/               # Imágenes OpenGraph dinámicas (edge)
 │  ├─ sitemap.ts robots.ts manifest.ts feed.xml/   # SEO automático
@@ -46,17 +75,30 @@ src/
 ├─ components/              # UI reutilizable (article/ layout/ ui/ home/ …)
 └─ lib/                     # Dominio y datos
    ├─ types.ts              # Modelo de contenido tipado
-   ├─ categories/authors/articles/resources.ts   # Seed escalable
+   ├─ categories.ts authors.ts articles.ts       # Catálogos y contenido inicial
+   ├─ articles-db.ts articles-cache.ts db.ts     # Postgres y caché de datos
+   ├─ session.ts dal.ts admin-users.ts env.ts    # Autenticación y entorno
+   ├─ news-feed.ts auto-articles.ts              # Curación automática de noticias
+   ├─ search.ts rate-limit.ts
    ├─ queries.ts            # Capa de acceso a datos (única frontera con los datos)
    ├─ seo.ts                # Metadata + JSON-LD helpers
    └─ utils.ts site.ts
 ```
 
-### Cambiar el seed por un CMS/BD
+### Datos
 
-Toda la app consume datos a través de **`src/lib/queries.ts`**. Para pasar de los
-datos de ejemplo a un headless CMS o base de datos, reimplementa ese único archivo
-respetando los tipos de `src/lib/types.ts`. Ninguna página importa datos crudos.
+Toda la app consume datos a través de **`src/lib/queries.ts`**, que a su vez lee de
+Postgres. Ninguna página importa datos crudos ni habla con la base de datos
+directamente.
+
+```
+queries.ts  →  articles-cache.ts  →  articles-db.ts  →  db.ts (pool de pg)
+```
+
+`articles-cache.ts` guarda el catálogo en la caché de datos de Next durante 5
+minutos y lo etiqueta como `articles`. Con eso una sola consulta atiende a todas las
+visitas de esa ventana. Las escrituras del panel invalidan la etiqueta al instante
+(`updateTag`) y el cron lo hace en segundo plano (`revalidateTag(..., "max")`).
 
 ## Funcionalidades
 
@@ -74,15 +116,48 @@ mega-menú; modo oscuro opcional (claro por defecto); scroll infinito.
 fuentes con `display: swap`, code-splitting, lazy loading (IntersectionObserver),
 `prefers-reduced-motion`, skip-link, foco visible, roles ARIA y contraste cuidado.
 
-**Monetización**: `AdSlot` con huecos reservados (leaderboard/rectangle/inline)
-sin layout shift, listos para AdSense, banners, afiliados y publicidad nativa.
-
 **CMS**: panel en `/admin` (excluido de indexación) con dashboard, gestión de
 artículos y editor con ajustes de publicación, organización, SEO y portada.
+Autenticación propia con sesiones JWT en cookie `httpOnly`.
+
+**Automatización**: `/api/cron/news` publica cada día hasta 10 noticias por
+categoría. Descarta las piezas cuyo cuerpo no se puede leer bien y limpia el resto
+de avisos de cookies, reclamos de suscripción, pies de foto y enlaces a otras
+noticias, conservando los titulares internos del original. Cada pieza cita y enlaza
+a su fuente.
+
+## Seguridad
+
+- Sesiones JWT (HS256, 8 h) en cookie `httpOnly` + `sameSite=lax`, `secure` en producción.
+- `proxy.ts` protege `/admin/*`; además cada página y cada server action revalidan la sesión.
+- Login con límite de intentos por IP y por cuenta, mensaje de error genérico y
+  comparación contra un hash señuelo cuando el email no existe, para no revelar qué
+  cuentas son válidas.
+- `/api/cron/news` solo acepta el secreto en la cabecera `Authorization`, lo compara
+  en tiempo constante y rechaza ejecuciones solapadas.
+- Cabeceras en `next.config.ts`: CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy` y `Cross-Origin-Opener-Policy`.
+- Todas las entradas del editor se validan y acotan en el servidor; los enlaces del
+  cuerpo solo admiten `http(s)` o rutas internas.
+- El optimizador de imágenes no acepta SVG ni redirecciones y sirve un número
+  cerrado de tamaños, para que no pueda usarse como proxy de imágenes ajeno.
+
+## Despliegue
+
+1. Provisiona un Postgres gestionado y aplica el esquema: `npm run db:seed`.
+2. Define las variables de entorno de la tabla anterior. Genera secretos nuevos:
+   no reutilices los de desarrollo.
+3. Despliega. `vercel.json` programa la actualización de noticias cada día a las 06:00 UTC.
+   La plataforma envía `Authorization: Bearer $CRON_SECRET` automáticamente.
+4. Comprueba `/feed.xml`, `/sitemap.xml`, `/robots.txt` y el acceso a `/admin`.
+
+Para escalar: las páginas de contenido se sirven prerenderizadas con ISR (5 min), así
+que el tráfico de lectura no toca la base de datos. Si necesitas mayor frescura, baja
+el `revalidate` de cada página; si necesitas menos carga, súbelo.
 
 ## Notas de producción
 
-Puntos marcados con `TODO` que conectar a servicios reales:
-- Newsletter → tu ESP (Resend / Mailchimp / Beehiiv) en `Newsletter.tsx`.
-- Comentarios y editor del CMS → server actions + base de datos.
-- Autenticación del panel `/admin`.
+- Newsletter → conecta `Newsletter.tsx` a tu ESP (Resend / Mailchimp / Beehiiv).
+- Comentarios → hoy son de demostración; falta persistirlos.
+- El limitador de peticiones vive en memoria de cada instancia: frena fuerza bruta y
+  scraping, pero conviene combinarlo con la protección de borde de la plataforma.

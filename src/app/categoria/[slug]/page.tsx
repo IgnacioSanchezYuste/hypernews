@@ -8,7 +8,9 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { InfiniteArticles } from "@/components/article/InfiniteArticles";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
-import { AdSlot } from "@/components/monetization/AdSlot";
+
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
@@ -30,7 +32,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cat = getCategory(slug);
   if (!cat) notFound();
 
-  const articles = getByCategory(slug);
+  const articles = await getByCategory(slug);
   if (articles.length === 0) notFound();
 
   const [lead, ...rest] = articles;
@@ -78,10 +80,6 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         )}
         <InfiniteArticles articles={rest} pageSize={9} />
       </section>
-
-      <div className="container-page mt-16">
-        <AdSlot format="leaderboard" />
-      </div>
     </>
   );
 }

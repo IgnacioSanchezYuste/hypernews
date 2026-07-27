@@ -1,23 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+/** The `dark` class on <html> is the source of truth; this watches it. */
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+
+const isDark = () => document.documentElement.classList.contains("dark");
+const isDarkOnServer = () => false;
 
 /**
  * Light/dark toggle. Default is light (the brand). Preference persists in
  * localStorage; the inline boot script in <head> prevents theme flash.
  */
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const [dark, setDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  const dark = useSyncExternalStore(subscribe, isDark, isDarkOnServer);
 
   function toggle() {
     const next = !dark;
-    setDark(next);
+    // Flipping the class notifies the observer, which re-renders this button.
     document.documentElement.classList.toggle("dark", next);
     try {
       localStorage.setItem("hn-theme", next ? "dark" : "light");
@@ -31,7 +35,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       aria-label={dark ? "Activar modo claro" : "Activar modo oscuro"}
       className={compact ? "grid h-6 w-6 place-items-center rounded-full text-muted transition-colors hover:text-fg" : "grid h-9 w-9 place-items-center rounded-full border border-hair text-muted transition-colors hover:bg-muted hover:text-fg"}
     >
-      {mounted && dark ? (
+      {dark ? (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />

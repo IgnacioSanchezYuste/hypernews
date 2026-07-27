@@ -6,20 +6,29 @@ import { buildMetadata } from "@/lib/seo";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { SectionHeader } from "@/components/home/SectionHeader";
 
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
+
 export const metadata: Metadata = buildMetadata({
   title: "Temas",
   description: "Explora los temas de HyperNews: Inteligencia Artificial, Psicología e Historia & Negocios.",
   path: "/categorias",
 });
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  const sections = await Promise.all(
+    primaryCategories.map(async (category) => ({
+      category,
+      articles: await getByCategory(category.slug, 3),
+    }))
+  );
+
   return (
     <div className="container-page py-12">
       <SectionHeader eyebrow="Explora" title="Nuestros temas" description="Tres verticales, un mismo criterio: explicar bien lo que merece la pena." />
 
       <div className="space-y-16">
-        {primaryCategories.map((category) => {
-          const articles = getByCategory(category.slug, 3);
+        {sections.map(({ category, articles }) => {
           return (
             <section key={category.slug}>
               <div className="mb-6 border-l-4 pl-4" style={{ borderColor: category.color }}>

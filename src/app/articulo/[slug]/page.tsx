@@ -18,18 +18,17 @@ import { ShareButtons } from "@/components/article/ShareButtons";
 import { Comments } from "@/components/article/Comments";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { Newsletter } from "@/components/marketing/Newsletter";
-import { AdSlot } from "@/components/monetization/AdSlot";
 
 export const revalidate = 300; // ISR: refresh at most every 5 minutes
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
   // Pre-render the featured/most valuable articles; the rest render on-demand.
-  return getAllSlugs().slice(0, 40).map((slug) => ({ slug }));
+  return (await getAllSlugs()).slice(0, 40).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getArticle(slug);
   if (!article) return { title: "Artículo no encontrado" };
   const category = getCategory(article.category);
   const author = getAuthor(article.author);
@@ -47,15 +46,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getArticle(slug);
   if (!article) notFound();
 
   const category = getCategory(article.category);
   const author = getAuthor(article.author);
   const minutes = readingMinutes(article.blocks);
   const toc = tableOfContents(article.blocks);
-  const related = getRelated(article, 3);
-  const byAuthor = getByAuthor(article.author, 4).filter((a) => a.slug !== article.slug).slice(0, 3);
+  const related = await getRelated(article, 3);
+  const byAuthor = (await getByAuthor(article.author, 4)).filter((a) => a.slug !== article.slug).slice(0, 3);
   const path = `/articulo/${article.slug}`;
   const faqBlock = article.blocks.find((b) => b.type === "faq");
 
@@ -90,6 +89,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 <p className="text-muted">
                   <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
                   {" · "}{minutes} min de lectura{" · "}{formatViews(article.views)} lecturas
+                  {article.source && (
+                    <>
+                      {" · "}
+                      <a href={article.source.url} target="_blank" rel="noopener noreferrer nofollow" className="link-underline">
+                        Fuente: {article.source.name} ↗
+                      </a>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -162,7 +169,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <div className="hidden lg:block">
             <div className="sticky top-24 space-y-8">
               <TableOfContents items={toc} />
-              <AdSlot format="rectangle" />
             </div>
           </div>
         </div>

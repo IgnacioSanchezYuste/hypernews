@@ -4,16 +4,19 @@ import { buildMetadata } from "@/lib/seo";
 import { ArticleCard } from "@/components/article/ArticleCard";
 import { SectionHeader } from "@/components/home/SectionHeader";
 
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
+
 export const metadata: Metadata = buildMetadata({
   title: "Tendencias",
   description: "Lo más leído, lo más comentado y lo que marca tendencia ahora mismo en HyperNews.",
   path: "/tendencias",
 });
 
-export default function TrendingPage() {
-  const trending = getTrending(6);
-  const mostRead = getMostRead(6);
-  const mostCommented = getMostCommented(5);
+export default async function TrendingPage() {
+  const trending = await getTrending(6);
+  const mostRead = await getMostRead(6);
+  const mostCommented = await getMostCommented(5);
 
   return (
     <div className="container-page py-12">

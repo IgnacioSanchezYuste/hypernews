@@ -1,6 +1,24 @@
 import type { Block } from "@/lib/types";
 import { CoverArt } from "@/components/ui/CoverArt";
 
+/**
+ * Article text is author-supplied, so a link target is only rendered when it is
+ * a plain http(s) address or a same-site path. Anything else — `javascript:`,
+ * `data:`, `vbscript:` — is dropped and the label is kept as plain text.
+ */
+function safeHref(raw: string): string | undefined {
+  const href = raw.trim();
+  if (/^(https?:)?\/\//i.test(href)) {
+    try {
+      const url = new URL(href, "https://placeholder.invalid");
+      return url.protocol === "https:" || url.protocol === "http:" ? href : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return /^[/#][^/\\]/.test(href) ? href : undefined;
+}
+
 /** Minimal inline markdown: **bold** and [text](url). Escapes the rest. */
 function inline(text: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
@@ -10,8 +28,20 @@ function inline(text: string): React.ReactNode {
   let key = 0;
   while ((m = regex.exec(text))) {
     if (m.index > last) parts.push(text.slice(last, m.index));
-    if (m[2]) parts.push(<strong key={key++}>{m[2]}</strong>);
-    else if (m[3]) parts.push(<a key={key++} href={m[4]}>{m[3]}</a>);
+    if (m[2]) {
+      parts.push(<strong key={key++}>{m[2]}</strong>);
+    } else if (m[3]) {
+      const href = safeHref(m[4]);
+      parts.push(
+        href ? (
+          <a key={key++} href={href} rel={href.startsWith("/") || href.startsWith("#") ? undefined : "noopener noreferrer nofollow"}>
+            {m[3]}
+          </a>
+        ) : (
+          <span key={key++}>{m[3]}</span>
+        )
+      );
+    }
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push(text.slice(last));

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import type { ArticleImage } from "@/lib/types";
 import { CoverArt } from "./CoverArt";
@@ -5,6 +8,10 @@ import { CoverArt } from "./CoverArt";
 /**
  * Featured photograph for an article. Uses next/image (lazy, responsive,
  * AVIF/WebP) with a category-tinted gradient fallback if no photo is set.
+ *
+ * Curated stories point at photos hosted by the original publisher, and a few
+ * of those hosts refuse requests coming from an image optimizer. When that
+ * happens the generated cover art takes over instead of leaving a broken frame.
  */
 export function CoverImage({
   image,
@@ -23,9 +30,12 @@ export function CoverImage({
   sizes?: string;
   priority?: boolean;
 }) {
-  if (!image) {
+  const [failed, setFailed] = useState(false);
+
+  if (!image || failed) {
     return <CoverArt seed={seed} category={category} className={className} rounded={rounded} priority={priority} />;
   }
+
   return (
     <div className={`relative overflow-hidden ${rounded} ${className} bg-muted`}>
       <Image
@@ -34,6 +44,7 @@ export function CoverImage({
         fill
         sizes={sizes}
         priority={priority}
+        onError={() => setFailed(true)}
         className="object-cover"
       />
     </div>

@@ -3,7 +3,6 @@ import { ArticleCard } from "@/components/article/ArticleCard";
 import { SectionHeader } from "@/components/home/SectionHeader";
 import { TrendingTicker } from "@/components/home/TrendingTicker";
 import { Newsletter } from "@/components/marketing/Newsletter";
-import { AdSlot } from "@/components/monetization/AdSlot";
 import {
   getFeatured, getLatest, getTrending, getMostRead, getByCategory, getRecommended,
 } from "@/lib/queries";
@@ -14,13 +13,22 @@ import { CategoryBadge } from "@/components/ui/CategoryBadge";
 import { ArticleMeta } from "@/components/article/ArticleMeta";
 import { readingMinutes } from "@/lib/utils";
 
-export default function HomePage() {
-  const featured = getFeatured(3);
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
+
+export default async function HomePage() {
+  const featured = await getFeatured(3);
   const [hero, ...sideFeatured] = featured;
-  const latest = getLatest(5, featured.map((a) => a.slug));
-  const trending = getTrending(8);
-  const mostRead = getMostRead(5);
-  const recommended = getRecommended(4);
+  const latest = await getLatest(5, featured.map((a) => a.slug));
+  const trending = await getTrending(8);
+  const mostRead = await getMostRead(5);
+  const recommended = await getRecommended(4);
+  const categorySections = await Promise.all(
+    primaryCategories.map(async (category) => ({
+      category,
+      articles: await getByCategory(category.slug, 4),
+    }))
+  );
 
   return (
     <>
@@ -66,15 +74,13 @@ export default function HomePage() {
                 {mostRead.map((a, i) => <ArticleCard key={a.slug} article={a} variant="list" index={i} />)}
               </div>
             </div>
-            <AdSlot format="rectangle" />
             <Newsletter variant="inline" />
           </aside>
         </div>
       </section>
 
       {/* ── CATEGORY SECTIONS ────────────────────────────────── */}
-      {primaryCategories.map((category) => {
-        const articles = getByCategory(category.slug, 4);
+      {categorySections.map(({ category, articles }) => {
         return (
           <section key={category.slug} className="container-page mt-16 md:mt-20">
             <div className="mb-6 flex items-end justify-between border-b-2 pb-3" style={{ borderColor: category.color }}>
@@ -89,9 +95,6 @@ export default function HomePage() {
           </section>
         );
       })}
-
-      {/* ── AD ───────────────────────────────────────────────── */}
-      <div className="container-page mt-16"><AdSlot format="leaderboard" /></div>
 
       {/* ── RECOMMENDED ──────────────────────────────────────── */}
       <section className="container-page mt-16 md:mt-20">

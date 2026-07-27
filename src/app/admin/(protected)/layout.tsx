@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/layout/Logo";
+import { verifySession } from "@/lib/dal";
+import { logout } from "@/app/admin/login/actions";
 
 export const metadata: Metadata = {
   title: "Panel de administración",
@@ -18,7 +20,18 @@ const nav = [
   { label: "Configuración", href: "/admin/configuracion", icon: "⚙" },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await verifySession();
+
   return (
     <div className="min-h-dvh bg-subtle">
       <div className="mx-auto flex max-w-[100rem]">
@@ -43,7 +56,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="hidden text-sm text-muted lg:block">Panel de administración</div>
             <div className="flex items-center gap-3">
               <Link href="/admin/articulos/nuevo" className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-fg)]">+ Nuevo artículo</Link>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white">EM</span>
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white" title={session.name}>{initials(session.name)}</span>
+              <form action={logout}>
+                <button type="submit" className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-muted hover:text-fg">Salir</button>
+              </form>
             </div>
           </header>
           <div className="p-6">{children}</div>

@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
+
+/** The origin is only known in the browser; on the server the path stands alone. */
+const noSubscribe = () => () => {};
 
 /** Share bar: native share, X, LinkedIn, and copy-link with feedback. */
 export function ShareButtons({ title, path, orientation = "horizontal" }: { title: string; path: string; orientation?: "horizontal" | "vertical" }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const url = typeof window !== "undefined" ? window.location.origin + path : path;
+  const url = useSyncExternalStore(
+    noSubscribe,
+    useCallback(() => window.location.origin + path, [path]),
+    useCallback(() => path, [path])
+  );
 
   async function copy() {
     try {

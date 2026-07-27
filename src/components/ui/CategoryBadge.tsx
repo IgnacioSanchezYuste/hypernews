@@ -18,7 +18,7 @@ export function CategoryBadge({
 
   const content = (
     <span
-      className="pill uppercase"
+      className={`pill uppercase ${size === "md" ? "px-3 py-1 text-xs tracking-wider" : ""}`}
       style={
         onDark
           ? { color: "#fff", backgroundColor: "rgba(255,255,255,0.18)", backdropFilter: "blur(4px)" }

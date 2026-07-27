@@ -76,5 +76,7 @@ export interface Article {
   /** Popularity signal used for "most read" ranking */
   views: number;
   comments?: number;
+  /** Present when the article was auto-curated from an external feed. */
+  source?: { name: string; url: string };
 }
 

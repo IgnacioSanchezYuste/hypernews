@@ -5,6 +5,9 @@ import { buildMetadata } from "@/lib/seo";
 import { InfiniteArticles } from "@/components/article/InfiniteArticles";
 import { SectionHeader } from "@/components/home/SectionHeader";
 
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   return buildMetadata({
@@ -16,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TagPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const articles = getByTag(slug);
+  const articles = await getByTag(slug);
   if (articles.length === 0) notFound();
 
   return (

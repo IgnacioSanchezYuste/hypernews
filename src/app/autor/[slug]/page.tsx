@@ -6,6 +6,9 @@ import { buildMetadata } from "@/lib/seo";
 import { Avatar } from "@/components/ui/Avatar";
 import { InfiniteArticles } from "@/components/article/InfiniteArticles";
 
+// ISR: served from the edge cache and refreshed at most every 5 minutes.
+export const revalidate = 300;
+
 export function generateStaticParams() {
   return authors.map((a) => ({ slug: a.slug }));
 }
@@ -25,7 +28,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const author = getAuthor(slug);
   if (!author) notFound();
-  const articles = getByAuthor(slug);
+  const articles = await getByAuthor(slug);
 
   return (
     <div className="container-page py-12">
