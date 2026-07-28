@@ -28,7 +28,7 @@ export function Newsletter({ variant = "band" }: { variant?: "band" | "inline" }
           ¡Gracias! Revisa tu correo para confirmar la suscripción. ✦
         </p>
       ) : (
-        <form onSubmit={submit} className={`mt-6 flex flex-col gap-2 sm:flex-row ${variant === "band" ? "sm:mx-auto sm:max-w-md" : ""}`}>
+        <form onSubmit={submit} className={`mt-6 flex flex-col gap-2 ${variant === "band" ? "sm:flex-row sm:mx-auto sm:max-w-md" : ""}`}>
           <input
             type="email"
             required

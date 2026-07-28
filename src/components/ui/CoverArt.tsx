@@ -39,9 +39,12 @@ export function CoverArt({
     filter: `hue-rotate(${hueShift}deg)`,
   };
 
+  // Same caller-supplied `position` override as CoverImage — see its comment.
+  const hasPosition = /(^|\s)(absolute|fixed|sticky|static)(\s|$)/.test(className);
+
   return (
     <div
-      className={`relative overflow-hidden ${rounded} ${className}`}
+      className={`${hasPosition ? "" : "relative "}overflow-hidden ${rounded} ${className}`}
       style={style}
       aria-hidden="true"
     >

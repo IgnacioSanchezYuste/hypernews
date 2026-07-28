@@ -34,11 +34,11 @@ export default async function HomePage() {
     <>
       {/* ── FEATURED ─────────────────────────────────────────── */}
       <section className="container-page pt-8">
-        <div className="grid items-start gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">{hero && <ArticleCard article={hero} variant="hero" />}</div>
-          <div className="flex flex-col gap-6">
+        <div className="grid gap-6 lg:aspect-[12/5] lg:grid-cols-3">
+          <div className="lg:col-span-2 lg:h-full">{hero && <ArticleCard article={hero} variant="hero" />}</div>
+          <div className="flex flex-col gap-6 lg:h-full">
             {sideFeatured.slice(0, 2).map((a) => (
-              <ArticleCard key={a.slug} article={a} variant="feature" />
+              <ArticleCard key={a.slug} article={a} variant="feature" fill />
             ))}
           </div>
         </div>

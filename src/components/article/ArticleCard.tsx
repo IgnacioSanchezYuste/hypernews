@@ -12,10 +12,13 @@ export function ArticleCard({
   article,
   variant = "standard",
   index,
+  fill = false,
 }: {
   article: Article;
   variant?: Variant;
   index?: number;
+  /** "feature" only: stretch to the height its flex/grid parent gives it, instead of a fixed aspect ratio. Used when a sibling (e.g. a taller hero card) must dictate the row height. */
+  fill?: boolean;
 }) {
   const href = `/articulo/${article.slug}`;
   const minutes = readingMinutes(article.blocks);
@@ -76,9 +79,9 @@ export function ArticleCard({
 
   if (variant === "feature") {
     return (
-      <article className="group flex flex-col">
-        <Link href={href} className="block overflow-hidden rounded-xl" tabIndex={-1} aria-hidden>
-          <CoverImage image={article.image} seed={article.coverSeed} category={article.category} className="aspect-[16/10] w-full transition-transform duration-700 group-hover:scale-[1.03]" sizes="(max-width: 768px) 100vw, 50vw" />
+      <article className={`group flex flex-col ${fill ? "lg:h-full" : ""}`}>
+        <Link href={href} className={`block overflow-hidden rounded-xl ${fill ? "lg:flex-1 lg:min-h-0" : ""}`} tabIndex={-1} aria-hidden>
+          <CoverImage image={article.image} seed={article.coverSeed} category={article.category} className={`aspect-[16/10] w-full transition-transform duration-700 group-hover:scale-[1.03] ${fill ? "lg:aspect-auto lg:h-full" : ""}`} sizes="(max-width: 768px) 100vw, 50vw" />
         </Link>
         <div className="flex flex-1 flex-col pt-4">
           <CategoryBadge slug={article.category} />
